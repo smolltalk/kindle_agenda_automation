@@ -231,13 +231,27 @@ def generate_schedule_image(events, weather=None, tides=None):
     image = Image.new("L", (width, height), background_color)
     draw = ImageDraw.Draw(image)
 
-    # Chargement d'une police (utilise une police par défaut si non trouvée)
-    try:
-        # Sur Windows: "arial.ttf", Sur macOS/Linux: "Arial.ttf" ou chemins complets
-        font_title = ImageFont.truetype("arial.ttf", 28)
-        font_text = ImageFont.truetype("arial.ttf", 18)
-        font_time = ImageFont.truetype("arial.ttf", 16)
-    except IOError:
+    # Chargement d'une police avec support des accents
+    font_candidates = [
+        "arial.ttf",                                                    # Windows
+        "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf",              # Linux
+        "/usr/share/fonts/truetype/liberation/LiberationSans-Regular.ttf",
+        "/System/Library/Fonts/Helvetica.ttc",                          # macOS
+    ]
+    font_path = None
+    for candidate in font_candidates:
+        try:
+            ImageFont.truetype(candidate, 16)
+            font_path = candidate
+            break
+        except (IOError, OSError):
+            continue
+
+    if font_path:
+        font_title = ImageFont.truetype(font_path, 28)
+        font_text = ImageFont.truetype(font_path, 18)
+        font_time = ImageFont.truetype(font_path, 16)
+    else:
         font_title = font_text = font_time = ImageFont.load_default()
 
     # Dessiner le titre
