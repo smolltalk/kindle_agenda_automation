@@ -12,6 +12,17 @@ from PIL import Image, ImageDraw, ImageFont
 # Si vous modifiez ces champs d'application, supprimez le fichier token.json.
 SCOPES = ['https://www.googleapis.com/auth/calendar.readonly']
 
+def is_evening():
+    """Retourne True si l'heure actuelle est >= 18:30 (heure locale)."""
+    now = datetime.datetime.now()
+    return now.hour > 18 or (now.hour == 18 and now.minute >= 30)
+
+def target_date():
+    """Retourne la date cible : demain si après 18:30, sinon aujourd'hui."""
+    if is_evening():
+        return datetime.date.today() + datetime.timedelta(days=1)
+    return datetime.date.today()
+
 def get_calendar_events():
     creds = None
     # Le fichier token.json stocke les identifiants d'accès de l'utilisateur.
@@ -32,12 +43,13 @@ def get_calendar_events():
 
     service = build('calendar', 'v3', credentials=creds)
 
-    # Définir le début et la fin de la journée en cours (fuseau horaire local)
-    maintenant = datetime.datetime.now()
-    debut_journee = maintenant.replace(hour=0, minute=0, second=0, microsecond=0).isoformat() + 'Z'
-    fin_journee = maintenant.replace(hour=23, minute=59, second=59, microsecond=999999).isoformat() + 'Z'
+    # Définir le début et la fin de la journée cible
+    jour_cible = target_date()
+    debut_journee = datetime.datetime.combine(jour_cible, datetime.time.min).isoformat() + 'Z'
+    fin_journee = datetime.datetime.combine(jour_cible, datetime.time.max).isoformat() + 'Z'
 
-    print("Récupération des événements du jour...")
+    label = "demain" if is_evening() else "du jour"
+    print(f"Récupération des événements {label}...")
     events_result = service.events().list(
         calendarId='primary', 
         timeMin=debut_journee,
@@ -62,7 +74,7 @@ WMO_DESCRIPTIONS = {
 }
 
 def get_tides_vannes():
-    """Récupère les marées du jour pour Saint-Armel depuis maree.info/108."""
+    """Récupère les marées pour la date cible depuis maree.info/108."""
     url = "https://maree.info/108"
     try:
         req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0"})
@@ -73,10 +85,10 @@ def get_tides_vannes():
         text = re.sub(r'<[^>]+>', ' ', html)
         text = re.sub(r'\s+', ' ', text)
 
-        today = datetime.date.today()
+        date_cible = target_date()
         jours = ["Lun", "Mar", "Mer", "Jeu", "Ven", "Sam", "Dim"]
-        jour = jours[today.weekday()]
-        day = today.day
+        jour = jours[date_cible.weekday()]
+        day = date_cible.day
 
         # Chercher la ligne du jour, s'arrêter au jour suivant
         match = re.search(
@@ -191,8 +203,8 @@ def get_weather_vannes():
             data = json.loads(resp.read().decode())
         current = data["current"]
         daily = data["daily"]
-        is_tomorrow = datetime.datetime.now().hour >= 19
-        idx = 1 if is_tomorrow else 0
+        tomorrow = is_evening()
+        idx = 1 if tomorrow else 0
         return {
             "temp": current["temperature_2m"],
             "humidity": current["relative_humidity_2m"],
@@ -202,7 +214,7 @@ def get_weather_vannes():
             "temp_max": daily["temperature_2m_max"][idx],
             "precip": daily["precipitation_sum"][idx],
             "daily_code": daily["weather_code"][idx],
-            "tomorrow": is_tomorrow,
+            "tomorrow": tomorrow,
         }
     except Exception as e:
         print(f"Impossible de récupérer la météo : {e}")
@@ -229,8 +241,10 @@ def generate_schedule_image(events, weather=None, tides=None):
         font_title = font_text = font_time = ImageFont.load_default()
 
     # Dessiner le titre
-    date_str = datetime.date.today().strftime("%d / %m / %Y")
-    draw.text((40, 30), f"{date_str}", fill=accent_color, font=font_title)
+    date_cible = target_date()
+    date_str = date_cible.strftime("%d / %m / %Y")
+    label_jour = "Demain" if is_evening() else "Aujourd'hui"
+    draw.text((40, 30), f"{label_jour} — {date_str}", fill=accent_color, font=font_title)
     draw.line([(40, 70), (width - 40, 70)], fill=accent_color, width=3)
 
     y_position = 100

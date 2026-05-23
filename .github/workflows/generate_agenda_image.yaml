@@ -1,0 +1,35 @@
+name: Generate Agenda Image
+
+on:
+  schedule:
+    - cron: '30 4 * * *'   # tous les jours à 06:30 heure FR (UTC+2)
+    - cron: '45 16 * * *'  # tous les jours à 18:45 heure FR (UTC+2)
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install dependencies
+        run: pip install google-api-python-client google-auth-httplib2 google-auth-oauthlib pillow
+
+      - name: Add token
+        run: echo '${{ secrets.GCAL_TOKEN }}' > token.json
+
+      - name: Run script
+        run: python generate_agenda_image.py
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: agenda
+          path: agenda_du_jour.png
