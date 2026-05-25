@@ -231,17 +231,17 @@ def generate_schedule_image(events, weather=None, tides=None):
     image = Image.new("L", (width, height), background_color)
     draw = ImageDraw.Draw(image)
 
-    # Chargement d'une police avec support des accents
+    # Chargement d'une police (essaie plusieurs chemins selon l'OS)
     font_candidates = [
         "arial.ttf",                                                    # Windows
-        "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf",              # Linux
-        "/usr/share/fonts/truetype/liberation/LiberationSans-Regular.ttf",
-        "/System/Library/Fonts/Helvetica.ttc",                          # macOS
+        "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf",              # Debian/Raspbian
+        "/usr/share/fonts/truetype/liberation/LiberationSans-Regular.ttf",  # Fedora/autre
+        "/usr/share/fonts/TTF/DejaVuSans.ttf",                         # Arch
     ]
     font_path = None
     for candidate in font_candidates:
         try:
-            ImageFont.truetype(candidate, 16)
+            ImageFont.truetype(candidate, 18)
             font_path = candidate
             break
         except (IOError, OSError):
@@ -252,6 +252,7 @@ def generate_schedule_image(events, weather=None, tides=None):
         font_text = ImageFont.truetype(font_path, 18)
         font_time = ImageFont.truetype(font_path, 16)
     else:
+        print("ATTENTION : Aucune police TrueType trouvée. Installer fonts-dejavu-core.")
         font_title = font_text = font_time = ImageFont.load_default()
 
     # Dessiner le titre
@@ -343,7 +344,7 @@ def generate_schedule_image(events, weather=None, tides=None):
             y_position += 20
 
     # Sauvegarde de l'image
-    output_filename = "agenda_du_jour.png"
+    output_filename = "output/agenda_du_jour.png"
     image.save(output_filename)
     print(f"Image générée avec succès : {output_filename}")
 
